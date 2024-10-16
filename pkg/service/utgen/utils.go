@@ -137,7 +137,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%.2fs", duration.Seconds())
 }
 
-func extractString(output []byte) []string {
+func ExtractString(output []byte) []string {
 	lines := strings.Split(string(output), "\n")
 	var dependencies []string
 	for _, line := range lines {
@@ -158,7 +158,7 @@ func isStringInarray(array []string, text string) bool {
 	return false
 }
 
-func mapKeysToSortedSlice(itemsMap map[string]bool) []string {
+func MapKeysToSortedSlice(itemsMap map[string]bool) []string {
 	items := []string{}
 	for item := range itemsMap {
 		items = append(items, item)
@@ -302,4 +302,9 @@ func createTestFile(testFilePath string, sourceFilePath string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func GenerateComment(testCode, commentPrefix, description string) string {
+	comment := fmt.Sprintf("%s %s", commentPrefix, description)
+	return fmt.Sprintf("%s\n%s", comment, testCode)
 }
