@@ -3,6 +3,7 @@ package utgen
 import (
 	"fmt"
 	"go.keploy.io/server/v2/pkg/service/utgen/lang"
+	"go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"io/fs"
 	"os"
 	"strings"
@@ -12,33 +13,23 @@ import (
 
 type Injector struct {
 	logger      *zap.Logger
-	language    string
 	langHandler lang.Handler
 }
 
 func NewInjectorBuilder(logger *zap.Logger, language string) (*Injector, error) {
-	var langHandler lang.Handler
-	switch strings.ToLower(language) {
-	case "javascript":
-		langHandler = &lang.JsHandler{} // 使用 JS 特定的处理器
-	case "typescript":
-		langHandler = &lang.TsHandler{} // 使用 TS 特定的处理器
-	case "go":
-		langHandler = &lang.GoHandler{}
-	case "java":
-		langHandler = &lang.JavaHandler{}
-	case "python":
-		langHandler = &lang.PythonHandler{}
-	default:
-		return nil, fmt.Errorf("unsupported language: %s", language)
-	}
-
 	injectBuilder := &Injector{
-		logger:      logger,
-		language:    language,
-		langHandler: langHandler,
+		logger: logger,
 	}
+	langHandler, err := injectBuilder.getLangHandler(language)
+	if err != nil {
+		return nil, err
+	}
+	injectBuilder.langHandler = langHandler
 	return injectBuilder, nil
+}
+
+func (i *Injector) libraryInstalled() ([]string, error) {
+	return i.langHandler.LibraryInstalled()
 }
 
 func (i *Injector) installLibraries(libraryCommands string, installedPackages []string) ([]string, error) {
@@ -52,10 +43,10 @@ func (i *Injector) installLibraries(libraryCommands string, installedPackages []
 	for _, command := range commands {
 		packageName := i.extractPackageName(command)
 
-		if isStringInarray(installedPackages, packageName) {
+		if utils.IsStringInarray(installedPackages, packageName) {
 			continue
 		}
-		_, _, exitCode, _, err := RunCommand(command, "", i.logger)
+		_, _, exitCode, _, err := utils.RunCommand(command, "", i.logger)
 		if exitCode != 0 || err != nil {
 			return newInstalledPackages, fmt.Errorf("failed to install library: %s", command)
 		}
@@ -84,22 +75,43 @@ func (i *Injector) updateImports(filePath string, imports string) (int, error) {
 		return 0, err
 	}
 	content := string(contentBytes)
-
 	var updatedContent string
 	var importLength int
-	updateFunc, ok := i.supportedLanguages[strings.ToLower(i.language)]
-	if !ok {
-		return 0, fmt.Errorf("unsupported language: %s", i.language)
-	}
-	updatedContent, importLength, err = updateFunc(content, newImports)
+	updatedContent, importLength, err = i.langHandler.UpdateImports(content, newImports)
 	if err != nil {
 		return 0, err
 	}
 	err = os.WriteFile(filePath, []byte(updatedContent), fs.ModePerm)
-
 	if err != nil {
 		return 0, err
 	}
-
 	return importLength, nil
+}
+
+func (i *Injector) addCommentToTest(testCode string) string {
+	return i.langHandler.AddCommentToTest(testCode)
+}
+
+func (i *Injector) uninstallLibraries(installedPackages []string) error {
+	return i.langHandler.UninstallLibraries(installedPackages)
+}
+
+func (i *Injector) getLangHandler(language string) (lang.Handler, error) {
+	var langHandler lang.Handler
+	switch strings.ToLower(language) {
+	case "javascript":
+		langHandler = &lang.JsHandler{}
+	case "typescript":
+		langHandler = &lang.TsHandler{}
+	case "go":
+		langHandler = &lang.GoHandler{}
+	case "java":
+		langHandler = &lang.JavaHandler{}
+	case "python":
+		langHandler = &lang.PythonHandler{}
+	default:
+		return nil, fmt.Errorf("unsupported language: %s", language)
+	}
+	langHandler.SetLogger(i.logger)
+	return langHandler, nil
 }

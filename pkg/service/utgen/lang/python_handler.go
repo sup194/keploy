@@ -3,14 +3,14 @@ package lang
 import (
 	"bufio"
 	"fmt"
-	"go.keploy.io/server/v2/pkg/service/utgen"
+	"go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"go.uber.org/zap"
 	"os/exec"
 	"strings"
 )
 
 type PythonHandler struct {
-	logger *zap.Logger
+	BaseHandler
 }
 
 func (p *PythonHandler) LibraryInstalled() ([]string, error) {
@@ -22,7 +22,7 @@ func (p *PythonHandler) LibraryInstalled() ([]string, error) {
 			return nil, fmt.Errorf("failed to get Python dependencies: %w", err)
 		}
 	}
-	return utgen.ExtractString(out), nil
+	return p.extractString(out), nil
 }
 
 func (p *PythonHandler) UninstallLibraries(installedPackages []string) error {
@@ -30,7 +30,7 @@ func (p *PythonHandler) UninstallLibraries(installedPackages []string) error {
 		p.logger.Info(fmt.Sprintf("Uninstalling library: %s", command))
 		uninstallCommand := fmt.Sprintf("pip uninstall -y %s", command)
 		p.logger.Info(fmt.Sprintf("Uninstalling library with command: %s", uninstallCommand))
-		_, _, exitCode, _, err := utgen.RunCommand(uninstallCommand, "", p.logger)
+		_, _, exitCode, _, err := utils.RunCommand(uninstallCommand, "", p.logger)
 		if exitCode != 0 || err != nil {
 			p.logger.Warn(fmt.Sprintf("Failed to uninstall library: %s", uninstallCommand), zap.Error(err))
 		}
@@ -116,7 +116,7 @@ func (p *PythonHandler) UpdateImports(content string, newImports []string) (stri
 			moduleName := fields[1]
 
 			if itemsMap, exists := existingImportsMap[moduleName]; exists && len(itemsMap) > 0 {
-				items := utgen.MapKeysToSortedSlice(itemsMap)
+				items := utils.MapKeysToSortedSlice(itemsMap)
 				importLine := fmt.Sprintf("from %s import %s", moduleName, strings.Join(items, ", "))
 
 				if strings.Contains(trimmedLine, ignoredPrefixes) {
@@ -130,7 +130,7 @@ func (p *PythonHandler) UpdateImports(content string, newImports []string) (stri
 
 	for module, itemsMap := range existingImportsMap {
 		if len(itemsMap) > 0 {
-			items := utgen.MapKeysToSortedSlice(itemsMap)
+			items := utils.MapKeysToSortedSlice(itemsMap)
 			importLine := fmt.Sprintf("from %s import %s", module, strings.Join(items, ", "))
 			importLine += " " + ignoredPrefixes
 			importLines = append(importLines, importLine)
@@ -155,5 +155,5 @@ func (p *PythonHandler) UpdateImports(content string, newImports []string) (stri
 }
 
 func (p *PythonHandler) AddCommentToTest(testCode string) string {
-	return utgen.GenerateComment(utgen.HashCommentPrefix, utgen.DefaultTestComment, testCode)
+	return p.generateComment(HashCommentPrefix, DefaultTestComment, testCode)
 }

@@ -1,4 +1,4 @@
-package utgen
+package utils
 
 import (
 	"bytes"
@@ -58,7 +58,7 @@ func GetCodeLanguage(sourceFilePath string) string {
 	return strings.ToLower(languageName)
 }
 
-func unmarshalYamlTestDetails(yamlStr string) (*models.UTDetails, error) {
+func UnmarshalYamlTestDetails(yamlStr string) (*models.UTDetails, error) {
 	yamlStr = strings.TrimSpace(yamlStr)
 	yamlStr = strings.TrimPrefix(yamlStr, "```yaml")
 	yamlStr = strings.TrimSuffix(yamlStr, "```")
@@ -70,7 +70,7 @@ func unmarshalYamlTestDetails(yamlStr string) (*models.UTDetails, error) {
 	return data, nil
 }
 
-func unmarshalYamlTestHeaders(yamlStr string) (*models.UTIndentationInfo, error) {
+func UnmarshalYamlTestHeaders(yamlStr string) (*models.UTIndentationInfo, error) {
 	yamlStr = strings.TrimSpace(yamlStr)
 	yamlStr = strings.TrimPrefix(yamlStr, "```yaml")
 	yamlStr = strings.TrimSuffix(yamlStr, "```")
@@ -83,7 +83,7 @@ func unmarshalYamlTestHeaders(yamlStr string) (*models.UTIndentationInfo, error)
 	return data, nil
 }
 
-func unmarshalYamlTestLine(yamlStr string) (*models.UTInsertionInfo, error) {
+func UnmarshalYamlTestLine(yamlStr string) (*models.UTInsertionInfo, error) {
 	yamlStr = strings.TrimSpace(yamlStr)
 	yamlStr = strings.TrimPrefix(yamlStr, "```yaml")
 	yamlStr = strings.TrimSuffix(yamlStr, "```")
@@ -95,7 +95,7 @@ func unmarshalYamlTestLine(yamlStr string) (*models.UTInsertionInfo, error) {
 	return data, nil
 }
 
-func convertToInt(value interface{}) (int, error) {
+func ConvertToInt(value interface{}) (int, error) {
 	switch v := value.(type) {
 	case int:
 		return v, nil
@@ -108,7 +108,7 @@ func convertToInt(value interface{}) (int, error) {
 	}
 }
 
-func extractErrorMessage(failMessage string) string {
+func ExtractErrorMessage(failMessage string) string {
 	const MAX_LINES = 15
 	pattern := `={3,} FAILURES ={3,}(.*?)(={3,}|$)`
 	re := regexp.MustCompile(pattern)
@@ -124,11 +124,11 @@ func extractErrorMessage(failMessage string) string {
 	return ""
 }
 
-func getFilename(filePath string) string {
+func GetFilename(filePath string) string {
 	return filepath.Base(filePath)
 }
 
-func formatDuration(duration time.Duration) string {
+func FormatDuration(duration time.Duration) string {
 	if duration >= time.Minute {
 		minutes := int(duration.Minutes())
 		seconds := duration.Seconds() - float64(minutes*60)
@@ -137,19 +137,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%.2fs", duration.Seconds())
 }
 
-func ExtractString(output []byte) []string {
-	lines := strings.Split(string(output), "\n")
-	var dependencies []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			dependencies = append(dependencies, trimmed)
-		}
-	}
-	return dependencies
-}
-
-func isStringInarray(array []string, text string) bool {
+func IsStringInarray(array []string, text string) bool {
 	for _, elem := range array {
 		if elem == text {
 			return true
@@ -208,7 +196,7 @@ func RunCommand(command string, cwd string, logger *zap.Logger) (stdout string, 
 	return stdout, stderr, exitCode, commandStartTime, err
 }
 
-func getTestFilePath(sourceFilePath, testDirectory string) (string, error) {
+func GetTestFilePath(sourceFilePath, testDirectory string) (string, error) {
 
 	language := GetCodeLanguage(sourceFilePath)
 
@@ -272,7 +260,7 @@ func findTestFile(testDirectory, baseNameWithoutExt, extension string) (string, 
 	return bestMatch, nil
 }
 
-func createTestFile(testFilePath string, sourceFilePath string) (bool, error) {
+func CreateTestFile(testFilePath string, sourceFilePath string) (bool, error) {
 	// Ensure the directory exists
 	err := os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm)
 	if err != nil {
@@ -302,9 +290,4 @@ func createTestFile(testFilePath string, sourceFilePath string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-func GenerateComment(testCode, commentPrefix, description string) string {
-	comment := fmt.Sprintf("%s %s", commentPrefix, description)
-	return fmt.Sprintf("%s\n%s", comment, testCode)
 }

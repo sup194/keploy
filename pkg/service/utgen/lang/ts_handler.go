@@ -2,7 +2,7 @@ package lang
 
 import (
 	"fmt"
-	"go.keploy.io/server/v2/pkg/service/utgen"
+	"go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"go.uber.org/zap"
 	"os/exec"
 	"regexp"
@@ -10,7 +10,7 @@ import (
 )
 
 type TsHandler struct {
-	logger *zap.Logger
+	BaseHandler
 }
 
 func (ts *TsHandler) LibraryInstalled() ([]string, error) {
@@ -19,7 +19,7 @@ func (ts *TsHandler) LibraryInstalled() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JavaScript/TypeScript dependencies: %w", err)
 	}
-	return utgen.ExtractString(out), nil
+	return ts.extractString(out), nil
 }
 
 func (ts *TsHandler) UninstallLibraries(installedPackages []string) error {
@@ -27,7 +27,7 @@ func (ts *TsHandler) UninstallLibraries(installedPackages []string) error {
 		ts.logger.Info(fmt.Sprintf("Uninstalling library: %s", command))
 		uninstallCommand := fmt.Sprintf("npm uninstall %s", command)
 		ts.logger.Info(fmt.Sprintf("Uninstalling library with command: %s", uninstallCommand))
-		_, _, exitCode, _, err := utgen.RunCommand(uninstallCommand, "", ts.logger)
+		_, _, exitCode, _, err := utils.RunCommand(uninstallCommand, "", ts.logger)
 		if exitCode != 0 || err != nil {
 			ts.logger.Warn(fmt.Sprintf("Failed to uninstall library: %s", uninstallCommand), zap.Error(err))
 		}
@@ -77,5 +77,5 @@ func (ts *TsHandler) UpdateImports(importedContent string, newImports []string) 
 }
 
 func (ts *TsHandler) AddCommentToTest(testCode string) string {
-	return utgen.GenerateComment(utgen.CommentPrefixSlash, utgen.DefaultTestComment, testCode)
+	return ts.generateComment(CommentPrefixSlash, DefaultTestComment, testCode)
 }

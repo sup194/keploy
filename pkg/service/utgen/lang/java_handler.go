@@ -2,7 +2,7 @@ package lang
 
 import (
 	"fmt"
-	"go.keploy.io/server/v2/pkg/service/utgen"
+	"go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"go.uber.org/zap"
 	"os/exec"
 	"regexp"
@@ -10,7 +10,7 @@ import (
 )
 
 type JavaHandler struct {
-	logger *zap.Logger
+	BaseHandler
 }
 
 func (j *JavaHandler) LibraryInstalled() ([]string, error) {
@@ -26,7 +26,7 @@ func (j *JavaHandler) UninstallLibraries(installedPackages []string) error {
 		j.logger.Info(fmt.Sprintf("Uninstalling library: %s", command))
 		uninstallCommand := fmt.Sprintf("mvn dependency:purge-local-repository -DreResolve=false -Dinclude=%s", command)
 		j.logger.Info(fmt.Sprintf("Uninstalling library with command: %s", uninstallCommand))
-		_, _, exitCode, _, err := utgen.RunCommand(uninstallCommand, "", j.logger)
+		_, _, exitCode, _, err := utils.RunCommand(uninstallCommand, "", j.logger)
 		if exitCode != 0 || err != nil {
 			j.logger.Warn(fmt.Sprintf("Failed to uninstall library: %s", uninstallCommand), zap.Error(err))
 		}
@@ -79,7 +79,7 @@ func (j *JavaHandler) UpdateImports(codeContent string, newImports []string) (st
 }
 
 func (j *JavaHandler) AddCommentToTest(testCode string) string {
-	return utgen.GenerateComment(utgen.CommentPrefixSlash, utgen.DefaultTestComment, testCode)
+	return j.generateComment(CommentPrefixSlash, DefaultTestComment, testCode)
 }
 
 func (j *JavaHandler) extractJavaDependencies(output []byte) []string {

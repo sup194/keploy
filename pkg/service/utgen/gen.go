@@ -4,6 +4,7 @@ package utgen
 import (
 	"context"
 	"fmt"
+	utils2 "go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"math"
 	"os"
 	"strings"
@@ -121,12 +122,12 @@ func (g *UnitTestGenerator) Start(ctx context.Context) error {
 		// If the source file path is not provided, iterate over all the source files and test files
 		if i < len(g.Files) {
 			g.srcPath = g.Files[i]
-			g.testPath, err = getTestFilePath(g.srcPath, g.dir)
+			g.testPath, err = utils2.GetTestFilePath(g.srcPath, g.dir)
 			if err != nil || g.testPath == "" {
 				g.logger.Error("Error getting test file path", zap.Error(err))
 				continue
 			}
-			isCreated, err := createTestFile(g.testPath, g.srcPath)
+			isCreated, err := utils2.CreateTestFile(g.testPath, g.srcPath)
 			if err != nil {
 				g.logger.Error("Error creating test file", zap.Error(err))
 				continue
@@ -152,7 +153,7 @@ func (g *UnitTestGenerator) Start(ctx context.Context) error {
 		}
 
 		iterationCount := 0
-		g.lang = GetCodeLanguage(g.srcPath)
+		g.lang = utils2.GetCodeLanguage(g.srcPath)
 
 		g.promptBuilder, err = NewPromptBuilder(g.srcPath, g.testPath, g.cov.Content, "", "", g.lang, g.additionalPrompt, g.logger)
 		g.injector, err = NewInjectorBuilder(g.logger, g.lang)
@@ -387,10 +388,10 @@ func (g *UnitTestGenerator) runCoverage() error {
 
 	startTime := time.Now()
 
-	_, _, exitCode, lastUpdatedTime, err := RunCommand(g.cmd, g.dir, g.logger)
+	_, _, exitCode, lastUpdatedTime, err := utils2.RunCommand(g.cmd, g.dir, g.logger)
 	duration := time.Since(startTime)
 	stopStatus <- true
-	g.logger.Info(fmt.Sprintf("Test command completed in %v", formatDuration(duration)))
+	g.logger.Info(fmt.Sprintf("Test command completed in %v", utils2.FormatDuration(duration)))
 
 	if err != nil {
 		utils.LogError(g.logger, err, "Error running test command")
@@ -399,7 +400,7 @@ func (g *UnitTestGenerator) runCoverage() error {
 	if exitCode != 0 {
 		utils.LogError(g.logger, err, "Error running test command")
 	}
-	coverageProcessor := NewCoverageProcessor(g.cov.Path, getFilename(g.srcPath), g.cov.Format)
+	coverageProcessor := NewCoverageProcessor(g.cov.Path, utils2.GetFilename(g.srcPath), g.cov.Format)
 	coverageResult, err := coverageProcessor.ProcessCoverageReport(lastUpdatedTime)
 	if err != nil {
 		utils.LogError(g.logger, err, "Error in coverage processing")
@@ -444,7 +445,7 @@ func (g *UnitTestGenerator) GenerateTests(ctx context.Context) (*models.UTDetail
 	default:
 	}
 
-	testsDetails, err := unmarshalYamlTestDetails(response)
+	testsDetails, err := utils2.UnmarshalYamlTestDetails(response)
 	if err != nil {
 		utils.LogError(g.logger, err, "Error unmarshalling test details")
 		return &models.UTDetails{}, err
@@ -490,12 +491,12 @@ func (g *UnitTestGenerator) getIndentation(ctx context.Context) (int, error) {
 			utils.LogError(g.logger, err, "Error calling AI model")
 			return 0, err
 		}
-		testsDetails, err := unmarshalYamlTestHeaders(response)
+		testsDetails, err := utils2.UnmarshalYamlTestHeaders(response)
 		if err != nil {
 			utils.LogError(g.logger, err, "Error unmarshalling test headers")
 			return 0, err
 		}
-		indentation, err = convertToInt(testsDetails.Indentation)
+		indentation, err = utils2.ConvertToInt(testsDetails.Indentation)
 		if err != nil {
 			return 0, fmt.Errorf("error converting test_headers_indentation to int: %w", err)
 		}
@@ -521,12 +522,12 @@ func (g *UnitTestGenerator) getLine(ctx context.Context) (int, error) {
 			utils.LogError(g.logger, err, "Error calling AI model")
 			return 0, err
 		}
-		testsDetails, err := unmarshalYamlTestLine(response)
+		testsDetails, err := utils2.UnmarshalYamlTestLine(response)
 		if err != nil {
 			utils.LogError(g.logger, err, "Error unmarshalling test line")
 			return 0, err
 		}
-		line, err = convertToInt(testsDetails.Line)
+		line, err = utils2.ConvertToInt(testsDetails.Line)
 		if err != nil {
 			return 0, fmt.Errorf("error converting relevant_line_number_to_insert_after to int: %w", err)
 		}
@@ -589,7 +590,7 @@ func (g *UnitTestGenerator) ValidateTest(generatedTest models.UT, passedTests, n
 
 		g.logger.Info(fmt.Sprintf("Iteration no: %d", i+1))
 
-		stdout, _, exitCode, timeOfTestCommand, _ := RunCommand(g.cmd, g.dir, g.logger)
+		stdout, _, exitCode, timeOfTestCommand, _ := utils2.RunCommand(g.cmd, g.dir, g.logger)
 		if exitCode != 0 {
 			g.logger.Info(fmt.Sprintf("Test failed in %d iteration", i+1))
 			// Test failed, roll back the test file to its original content
@@ -609,7 +610,7 @@ func (g *UnitTestGenerator) ValidateTest(generatedTest models.UT, passedTests, n
 			g.logger.Info("Skipping a generated test that failed")
 			g.failedTests = append(g.failedTests, &models.FailedUT{
 				TestCode: generatedTest.TestCode,
-				ErrorMsg: extractErrorMessage(stdout),
+				ErrorMsg: utils2.ExtractErrorMessage(stdout),
 			})
 			g.testCaseFailed++
 			*failedBuild++
@@ -619,7 +620,7 @@ func (g *UnitTestGenerator) ValidateTest(generatedTest models.UT, passedTests, n
 	}
 
 	// Check for coverage increase
-	newCoverageProcessor := NewCoverageProcessor(g.cov.Path, getFilename(g.srcPath), g.cov.Format)
+	newCoverageProcessor := NewCoverageProcessor(g.cov.Path, utils2.GetFilename(g.srcPath), g.cov.Format)
 	covResult, err := newCoverageProcessor.ProcessCoverageReport(testCommandStartTime)
 	if err != nil {
 		return fmt.Errorf("error processing coverage report: %w", err)

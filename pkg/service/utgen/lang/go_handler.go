@@ -2,7 +2,7 @@ package lang
 
 import (
 	"fmt"
-	"go.keploy.io/server/v2/pkg/service/utgen"
+	"go.keploy.io/server/v2/pkg/service/utgen/utils"
 	"go.uber.org/zap"
 	"os/exec"
 	"regexp"
@@ -10,15 +10,15 @@ import (
 )
 
 type GoHandler struct {
-	logger *zap.Logger
+	BaseHandler
 }
 
 func (g *GoHandler) LibraryInstalled() ([]string, error) {
 	out, err := exec.Command("go", "list", "-m", "all").Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Go dependencies: %w", err)
+		return nil, fmt.Errorf("failed to get go dependencies: %w", err)
 	}
-	return utgen.ExtractString(out), nil
+	return g.extractString(out), nil
 }
 
 func (g *GoHandler) UninstallLibraries(installedPackages []string) error {
@@ -27,7 +27,7 @@ func (g *GoHandler) UninstallLibraries(installedPackages []string) error {
 		var uninstallCommand string
 		uninstallCommand = fmt.Sprintf("go mod edit -droprequire %s && go mod tidy", command)
 		g.logger.Info(fmt.Sprintf("Uninstalling library with command: %s", uninstallCommand))
-		_, _, exitCode, _, err := utgen.RunCommand(uninstallCommand, "", g.logger)
+		_, _, exitCode, _, err := utils.RunCommand(uninstallCommand, "", g.logger)
 		if exitCode != 0 || err != nil {
 			g.logger.Warn(fmt.Sprintf("Failed to uninstall library: %s", uninstallCommand), zap.Error(err))
 		}
@@ -77,7 +77,7 @@ func (g *GoHandler) UpdateImports(codeBlock string, newImports []string) (string
 }
 
 func (g *GoHandler) AddCommentToTest(testCode string) string {
-	return utgen.GenerateComment(utgen.CommentPrefixSlash, utgen.DefaultTestComment, testCode)
+	return g.generateComment(CommentPrefixSlash, DefaultTestComment, testCode)
 }
 
 func (g *GoHandler) extractGoImports(importLines []string, ignoreSpace bool) []string {
